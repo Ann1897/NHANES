@@ -1,0 +1,634 @@
+---
+title: "Data Analysis"
+output: pdf_document
+date: "2023-10-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(aplore3)
+library(tidyverse)
+library(ggmosaic)
+library(ggrepel)
+```
+
+```{r}
+
+DF <- nhanes
+
+str(DF)
+
+summary(DF)
+
+```
+Removed the 37 records that missing the weight since its just 0.5% of total observations
+
+```{r}
+
+DF_1 <- DF[!(is.na(DF$wt)), ]
+
+summary(DF_1)
+
+for (i in c(2:ncol(DF_1))) {
+  if (is.factor(DF_1[[i]])) {
+    print(ggplot(DF_1, aes_string(x = colnames(DF_1)[i])) + geom_bar() + 
+            labs(title = paste("Bar plot of", colnames(DF_1)[i]), x = colnames(DF_1)[i], 
+                 y = "Count"))
+  } else if (is.numeric(DF_1[[i]])) {
+    print(ggplot(DF_1, aes_string(x = colnames(DF_1)[i])) + geom_histogram() +
+            labs(title = paste("Histogram of", colnames(DF_1)[i]), x = colnames(DF_1)[i],
+                 y = "Count"))
+  } else {
+    print(paste(colnames(DF_1)[i], "is not a factor or numeric. Skipping."))
+  }
+}
+
+for (i in c(2:(ncol(DF_1)-1))) {
+  if (is.factor(DF_1[[i]])) {
+    print(ggplot(DF_1, aes_string(x = colnames(DF_1)[i])) + geom_bar(aes(fill = obese)) + 
+            labs(title = paste("Bar plot of", colnames(DF_1)[i]), x = colnames(DF_1)[i], 
+                 y = "Count"))
+  } else if (is.numeric(DF_1[[i]])) {
+    print(ggplot(DF_1, aes_string(x = colnames(DF_1)[i])) + geom_histogram(aes(fill = obese)) + facet_grid(~ obese) +
+            labs(title = paste("Histogram of", colnames(DF_1)[i]), x = colnames(DF_1)[i],
+                 y = "Count"))
+  } else {
+    print(paste(colnames(DF_1)[i], "is not a factor or numeric. Skipping."))
+  }
+}
+
+```
+
+## Association between categorical variables with the obese data
+
+1) Obese vs Gender
+```{r}
+
+table(DF_1$obese, DF_1$gender)
+prop.table(table(DF_1$obese, DF_1$gender), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$gender))
+
+```
+
+2) Obese vs Marital Status
+```{r}
+
+table(DF_1$obese, DF_1$marstat)
+prop.table(table(DF_1$obese, DF_1$marstat), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$marstat))
+
+```
+3) Obese vs PSU
+```{r}
+
+table(DF_1$obese, DF_1$psu)
+prop.table(table(DF_1$obese, DF_1$psu), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$psu))
+
+```
+
+
+
+4) Obese vs strata
+
+```{r}
+
+table(DF_1$obese, DF_1$strata)
+prop.table(table(DF_1$obese, DF_1$strata), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$strata))
+
+```
+
+5) Obese vs vigwork
+
+```{r}
+
+table(DF_1$obese, DF_1$vigwrk)
+prop.table(table(DF_1$obese, DF_1$vigwrk), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$vigwrk))
+
+```
+
+
+
+6) Obese vs modwork
+
+```{r}
+
+table(DF_1$obese, DF_1$modwrk)
+prop.table(table(DF_1$obese, DF_1$modwrk), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$modwrk))
+
+```
+
+
+7) Obese vs wlkbik
+
+```{r}
+
+table(DF_1$obese, DF_1$wlkbik)
+prop.table(table(DF_1$obese, DF_1$wlkbik), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$wlkbik))
+
+```
+
+
+8) Obese vs vigre excerise
+
+```{r}
+
+table(DF_1$obese, DF_1$vigrecexr)
+prop.table(table(DF_1$obese, DF_1$vigrecexr), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$vigrecexr))
+
+```
+
+
+
+9) Obese vs modern excerise
+
+```{r}
+
+table(DF_1$obese, DF_1$modrecexr)
+prop.table(table(DF_1$obese, DF_1$modrecexr), margin = 1)
+chisq.test(table(DF_1$obese, DF_1$modrecexr))
+
+```
+3) Parameter Estimation and Confidence Intervals
+
+```{r}
+
+table(DF_1$obese) %>% prop.table()
+
+```
+1. Categories the age variable and get the proporion of obesity wrt to each age group and gender
+
+```{r}
+DF_1$Age_Category <- cut(DF_1$age, breaks = c(0, 18, 35, 50, 65, Inf), labels = c('0 - 18','19 - 35','36 - 50','51 - 65','66+'))
+
+DF_1$Obesity <- ifelse(DF_1$obese == "Yes", 1, 0)
+
+Age_Gender_Obese <- DF_1 %>%
+  group_by(Age_Category, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count)
+
+# Print the result
+Age_Gender_Obese
+
+ggplot(Age_Gender_Obese, aes(x = Age_Category, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Age Category", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+```
+
+
+2. Categories the age variable and get the proportion of obesity wrt to each minutes of sedernity and gender
+
+```{r}
+DF_1$Sedmin_Category <- cut(DF_1$sedmin, breaks = c(0, 10, 30, 60, 120, 240,360, 720, 840), labels = c('0 - 10','11 - 30','31 - 60','61 - 120','121 - 240', '241 - 360', '361 - 720', '721 - 840'))
+
+Sedmin_Gender_Obese <- DF_1 %>%
+  group_by(Sedmin_Category, gender, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+Sedmin_Gender_Obese
+
+ggplot(Sedmin_Gender_Obese, aes(x = Sedmin_Category, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid( gender  ~ Age_Category) +
+  labs(x = "Minutes of Sedentary Activity per Week", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+Sedmin_Gender_Obese_1 <- DF_1 %>%
+  group_by(Sedmin_Category, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+Sedmin_Gender_Obese_1
+
+ggplot(Sedmin_Gender_Obese, aes(x = Sedmin_Category, y = proportion, fill = Age_Category)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ Age_Category) +
+  labs(x = "Minutes of Sedentary Activity per Week", y = "Proportion of Obesity", fill = "Age_Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+Sedmin_Gender_Obese_2 <- DF_1 %>%
+  group_by(Sedmin_Category, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+Sedmin_Gender_Obese_1
+
+ggplot(Sedmin_Gender_Obese, aes(x = Sedmin_Category, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Minutes of Sedentary Activity per Week", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+3. Categories the age variable and get the proportion of obesity wrt to vigerous work and gender and age
+
+```{r}
+
+vigwrk_Obese <- DF_1 %>%
+  group_by(vigwrk, gender, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+
+ggplot(vigwrk_Obese, aes(x = vigwrk, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid( gender  ~ Age_Category) +
+  labs(x = "Vigorous Work Activity", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+
+vigwrk_Obese_1 <- DF_1 %>%
+  group_by(vigwrk, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+vigwrk_Obese_1
+
+ggplot(vigwrk_Obese_1, aes(x = vigwrk, y = proportion, fill = Age_Category)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ Age_Category) +
+  labs(x = "Vigorous Work Activity", y = "Proportion of Obesity", fill = "Age_Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+vigwrk_Obese_2 <- DF_1 %>%
+  group_by(vigwrk, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+vigwrk_Obese_2
+
+ggplot(vigwrk_Obese_2, aes(x = vigwrk, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Vigorous Work Activity", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+
+```
+
+
+
+4. Categories the age variable and get the proportion of obesity wrt to Moderate work and gender and age
+
+```{r}
+
+modwrk_Obese <- DF_1 %>%
+  group_by(modwrk, gender, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+modwrk_Obese
+
+ggplot(modwrk_Obese, aes(x = modwrk, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid( gender  ~ Age_Category) +
+  labs(x = "Moderate Work Activity", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+modwrk_Obese
+
+modwrk_Obese_1 <- DF_1 %>%
+  group_by(modwrk, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+modwrk_Obese_1
+
+ggplot(modwrk_Obese_1, aes(x = modwrk, y = proportion, fill = Age_Category)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ Age_Category) +
+  labs(x = "Moderate Work Activity", y = "Proportion of Obesity", fill = "Age_Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+modwrk_Obese_2 <- DF_1 %>%
+  group_by(modwrk, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+modwrk_Obese_2
+
+ggplot(modwrk_Obese_2, aes(x = modwrk, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Moderate Work Activity", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+```
+
+
+5. Categories the age variable and get the proportion of obesity wrt to Walk or Bicycle and gender and age
+
+```{r}
+
+wlkbik_Obese <- DF_1 %>%
+  group_by(wlkbik, gender, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+wlkbik_Obese
+
+ggplot(wlkbik_Obese, aes(x = wlkbik, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid( gender  ~ Age_Category) +
+  labs(x = "Walk or Bicycle", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+wlkbik_Obese_1 <- DF_1 %>%
+  group_by(wlkbik, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+wlkbik_Obese_1
+
+ggplot(wlkbik_Obese_1, aes(x = wlkbik, y = proportion, fill = Age_Category)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ Age_Category) +
+  labs(x = "Walk or Bicycle", y = "Proportion of Obesity", fill = "Age_Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+wlkbik_Obese_2 <- DF_1 %>%
+  group_by(wlkbik, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+wlkbik_Obese_2
+
+ggplot(wlkbik_Obese_2, aes(x = wlkbik, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Walk or Bicycle", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+```
+
+6. Categories the age variable and get the proportion of obesity wrt to Vigerous Exercise and gender and age
+
+```{r}
+
+vigwrk_Obese <- DF_1 %>%
+  group_by(vigwrk, gender, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+vigwrk_Obese
+
+ggplot(vigwrk_Obese, aes(x = vigwrk, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid( gender  ~ Age_Category) +
+  labs(x = "Vigorous Recreational Activities", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+vigwrk_Obese_1 <- DF_1 %>%
+  group_by(vigwrk, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+vigwrk_Obese_1
+
+ggplot(vigwrk_Obese_1, aes(x = vigwrk, y = proportion, fill = Age_Category)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ Age_Category) +
+  labs(x = "Vigorous Recreational Activities", y = "Proportion of Obesity", fill = "Age_Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+vigwrk_Obese_2 <- DF_1 %>%
+  group_by(vigwrk, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+vigwrk_Obese_2
+
+ggplot(vigwrk_Obese_2, aes(x = vigwrk, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Vigorous Recreational Activities", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+```
+
+
+
+7. Categories the age variable and get the proportion of obesity wrt to Moderate Recreational Activities and gender and age
+
+```{r}
+
+modrecexr_Obese <- DF_1 %>%
+  group_by(modrecexr, gender, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+modrecexr_Obese
+
+ggplot(modrecexr_Obese, aes(x = modrecexr, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid( gender  ~ Age_Category) +
+  labs(x = "Moderate Recreational Activities", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+modrecexr_Obese_1 <- DF_1 %>%
+  group_by(modrecexr, Age_Category) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+modrecexr_Obese_1
+
+ggplot(modrecexr_Obese_1, aes(x = modrecexr, y = proportion, fill = Age_Category)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ Age_Category) +
+  labs(x = "Moderate Recreational Activities", y = "Proportion of Obesity", fill = "Age_Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+modrecexr_Obese_2 <- DF_1 %>%
+  group_by(modrecexr, gender) %>%
+  summarise(obesity_count = sum(Obesity), total_count = n(), 
+            proportion = obesity_count / total_count) %>% na.omit()
+
+# Print the result
+modrecexr_Obese_2
+
+ggplot(modrecexr_Obese_2, aes(x = modrecexr, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") + facet_grid(~ gender) +
+  labs(x = "Moderate Recreational Activities", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_text(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5)
+
+
+```
+
+
+
+## Confidence Intervals for the obesity percentages in each group
+
+1) Obesity
+
+i) Wald
+```{r}
+###################################################
+### code chunk number 7: Inference.Rnw:682-690
+###################################################
+
+alpha <- 0.05
+phat <- sum(DF_1$Obesity) / length(DF_1$Obesity)
+
+#Wald
+
+CI=c(phat-qnorm(alpha/2,lower=F)*sqrt(phat*(1-phat)/length(DF_1$Obesity)),
+     phat+qnorm(alpha/2,lower=F)*sqrt(phat*(1-phat)/length(DF_1$Obesity)))
+round(CI,3)
+```
+
+ii) Likelihood Ratio CI
+
+```{r}
+###################################################
+### code chunk number 8: LRCI
+###################################################
+ll.binom=function(pi,n,y){
+  phat=y/n
+  return(2*(y*log(phat/pi)+(n-y)*log((1-phat)/(1-pi))))
+}
+
+ll.binom.scaled=function(pi,n,y,alpha=0.05,df=1){
+  quant=qchisq(alpha,df,lower=F)
+  return(ll.binom(pi,n,y)-quant)
+}
+
+curve(ll.binom(x,n=length(DF_1$Obesity),y=sum(DF_1$Obesity)),from=0.14,to=0.17, xlab="p",
+      ylab=paste0("l(p)"))
+abline(h=3.84,lty=2,col="red")
+
+
+lower=uniroot(ll.binom.scaled,interval=c(0.1,0.15), 
+              n=length(DF_1$Obesity),y=sum(DF_1$Obesity))
+upper=uniroot(ll.binom.scaled,interval=c(0.16,0.165), 
+              n=length(DF_1$Obesity),y=sum(DF_1$Obesity))
+abline(v=c(lower$root,upper$root), lty=2,col="blue")
+text(0.15,12,labels=paste0("CI=[",
+                         round(lower$root,2),",",
+                         round(upper$root,2),"]"))
+```
+
+iii)  Wilson
+```{r}
+
+y=sum(DF_1$Obesity)
+n=length(DF_1$Obesity)
+phat=y/n
+qhat=1-phat
+z=qnorm(0.025,lower=F)
+  
+
+
+numl=phat+z^2/(2*n) - z*sqrt(phat*qhat/n+z^2/(4*n^2))
+numu=phat+z^2/(2*n) + z*sqrt(phat*qhat/n+z^2/(4*n^2))
+denom=1+z^2/n
+numl/denom
+numu/denom
+```
+
+iv) Agresti-Coull
+
+```{r}
+#Agresti-Coull
+tildep=(y+z^2/2)/(n+z^2)
+tildep - z*sqrt(tildep*(1-tildep)/(n+z^2))
+tildep + z*sqrt(tildep*(1-tildep)/(n+z^2))
+```
+
+v) Clopper Pearson
+```{r}
+# Clopper Pearson
+qbeta(0.05/2,shape1=y,shape2=n-y+1)
+qbeta(1-0.05/2,shape1=y+1,shape2=n-y)
+```
+
+v) Listing of 11 different confidence intervals
+```{r}
+# Listing of 11 different confidence intervals
+library(binom)
+binom.confint(y, n, conf.level = 0.95)
+
+
+
+```
+## CI for each two binary variables - Clopper Pearson
+
+1) Gender
+
+```{r}
+
+Age_Gender_Obese$Low_CI <- qbeta(0.05/2,shape1=Age_Gender_Obese$obesity_count,
+                                 shape2=Age_Gender_Obese$total_count - Age_Gender_Obese$obesity_count+1)
+
+Age_Gender_Obese$High_CI <- qbeta(1-0.05/2,shape1=Age_Gender_Obese$obesity_count+1,
+                                  shape2=Age_Gender_Obese$total_count - Age_Gender_Obese$obesity_count)
+
+
+# Plot the data
+ggplot(Age_Gender_Obese, aes(x = Age_Category, y = proportion, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = Low_CI, ymax = High_CI), width = 0.2, position = position_dodge(0.9)) +
+  labs(x = "Age Category", y = "Proportion of Obesity", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + geom_text_repel(aes(label=round(proportion, 2)), vjust=-0.3, position = position_dodge(0.9), size=3.5) + geom_text_repel(aes(label=paste0("[", round(Low_CI, 2), ", ", round(High_CI, 2), "]"), y=High_CI), vjust=-1.5, position=position_dodge(0.9), size=3.5, col="red")
+
+
+
+```
+
